@@ -16,8 +16,6 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 
-// Use production webhook after activating the n8n workflow.
-// If you are still testing manually, change /webhook/ to /webhook-test/.
 const N8N_WEBHOOK_URL = "https://gamersera.app.n8n.cloud/webhook/gamersera-prizes";
 
 if (!DISCORD_TOKEN) throw new Error("Missing DISCORD_TOKEN");
@@ -36,28 +34,21 @@ const client = new Client({
 
 async function callN8n(payload) {
   console.log("➡️ Sending to n8n:", JSON.stringify(payload, null, 2));
-  console.log("➡️ n8n URL:", N8N_WEBHOOK_URL);
 
   const res = await fetch(N8N_WEBHOOK_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
 
   const text = await res.text();
-
   console.log("⬅️ n8n status:", res.status);
   console.log("⬅️ n8n response:", text);
 
   try {
     return JSON.parse(text);
   } catch {
-    return {
-      success: false,
-      message: text || "n8n returned an invalid response."
-    };
+    return { success: false, message: text || "n8n returned invalid response." };
   }
 }
 
@@ -85,10 +76,6 @@ async function registerCommands() {
   ];
 
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
-
-  console.log("🔄 Registering slash commands...");
-  console.log("CLIENT_ID:", CLIENT_ID);
-  console.log("GUILD_ID:", GUILD_ID);
 
   await rest.put(
     Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
@@ -131,25 +118,35 @@ client.on(Events.InteractionCreate, async (interaction) => {
       await interaction.deferReply({ ephemeral: true });
 
       const member = await interaction.guild.members.fetch(interaction.user.id);
-      const roleIds = member.roles.cache.map((role) => String(role.id));
-const roleIdsText = roleIds.join(",");
 
-const result = await callN8n({
-  action: "create_claim_token",
-  discord_user_id: String(interaction.user.id),
-  discord_username: interaction.user.username,
-  role_ids_text: roleIdsText
-});
+      const roleIdsText = member.roles.cache
+        .map((role) => String(role.id))
+        .join(",");
 
-      if (!result.success) {
+      const result = await callN8n({
+        action: "create_claim_token",
+        discord_user_id: String(interaction.user.id),
+        discord_username: interaction.user.username,
+        role_ids_text: roleIdsText
+      });
+
+      if (!result.success || !result.claim_url) {
         return interaction.editReply(
           result.message || "❌ Failed to create your prize claim link."
         );
       }
 
-      return interaction.editReply(
-        `🎁 **Your prize claim link:**\n${result.claim_url}\n\nThis link is private to you.`
+      const claimButton = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel("Open Prize Claim Portal")
+          .setStyle(ButtonStyle.Link)
+          .setURL(result.claim_url)
       );
+
+      return interaction.editReply({
+        content: "🎁 Your prize claim portal is ready.",
+        components: [claimButton]
+      });
     }
   } catch (err) {
     console.error("Interaction error:", err);
