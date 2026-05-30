@@ -6,7 +6,10 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  Events
+  Events,
+  SlashCommandBuilder,
+  REST,
+  Routes
 } from "discord.js";
 
 const client = new Client({
@@ -22,18 +25,61 @@ const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
 async function callN8n(payload) {
   const res = await fetch(N8N_WEBHOOK_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify(payload)
   });
 
   return await res.json();
 }
 
-client.once(Events.ClientReady, () => {
-  console.log(`✅ GamersEra Prize Bot online as ${client.user.tag}`);
+async function registerCommands() {
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("claimpanel")
+      .setDescription("Post the GamersEra prize claim button panel")
+      .toJSON()
+  ];
+
+  const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
+
+  await rest.put(
+    Routes.applicationGuildCommands(
+      process.env.CLIENT_ID,
+      process.env.GUILD_ID
+    ),
+    { body: commands }
+  );
+
+  console.log("✅ Slash commands registered");
+}
+
+client.once(Events.ClientReady, async () => {
+  console.log(`✅ Prize Bot Online: ${client.user.tag}`);
+  await registerCommands();
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === "claimpanel") {
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId("claim_prize")
+          .setLabel("Claim Prize")
+          .setStyle(ButtonStyle.Success)
+      );
+
+      await interaction.reply({
+        content:
+          "🎁 **Claim Your Prize**\n\nIf you have a winner role, click below to submit your prize request.",
+        components: [row]
+      });
+
+      return;
+    }
+  }
+
   if (!interaction.isButton()) return;
 
   if (interaction.customId === "claim_prize") {
@@ -50,33 +96,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     });
 
     if (!result.success) {
-      return interaction.editReply("❌ Could not create your prize claim link.");
+      return interaction.editReply(
+        "❌ Failed to create your prize claim link."
+      );
     }
 
     return interaction.editReply(
-      `🎁 Your prize claim link:\n${result.claim_url}\n\nThis link may expire, so submit your form as soon as possible.`
+      `🎁 Your prize claim link:\n${result.claim_url}\n\nThis link is private to you.`
     );
-  }
-
-  if (interaction.customId === "post_claim_panel") {
-    await interaction.deferReply({ ephemeral: true });
-
-    const channel = await client.channels.fetch(process.env.PUBLIC_CLAIM_CHANNEL_ID);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("claim_prize")
-        .setLabel("Claim Prize")
-        .setStyle(ButtonStyle.Success)
-    );
-
-    await channel.send({
-      content:
-        "🎁 **Claim Your Prize**\n\nIf you have a winner role, click below to submit your prize request.",
-      components: [row]
-    });
-
-    return interaction.editReply("✅ Claim button posted.");
   }
 });
 
