@@ -132,13 +132,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       const member = await interaction.guild.members.fetch(interaction.user.id);
       const roleIds = member.roles.cache.map((role) => String(role.id));
+const roleIdsText = roleIds.join(",");
 
-      const result = await callN8n({
-        action: "create_claim_token",
-        discord_user_id: interaction.user.id,
-        discord_username: interaction.user.username,
-        role_ids: roleIds.join(",")
-      });
+const result = await callN8n({
+  action: "create_claim_token",
+  discord_user_id: String(interaction.user.id),
+  discord_username: interaction.user.username,
+  role_ids_text: roleIdsText
+});
 
       if (!result.success) {
         return interaction.editReply(
