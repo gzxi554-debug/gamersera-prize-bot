@@ -12,17 +12,17 @@ import {
   Routes
 } from "discord.js";
 
-const {
-  DISCORD_TOKEN,
-  CLIENT_ID,
-  GUILD_ID,
-  N8N_WEBHOOK_URL
-} = process.env;
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+
+// Use production webhook after activating the n8n workflow.
+// If you are still testing manually, change /webhook/ to /webhook-test/.
+const N8N_WEBHOOK_URL = "https://gamersera.app.n8n.cloud/webhook/gamersera-prizes";
 
 if (!DISCORD_TOKEN) throw new Error("Missing DISCORD_TOKEN");
 if (!CLIENT_ID) throw new Error("Missing CLIENT_ID");
 if (!GUILD_ID) throw new Error("Missing GUILD_ID");
-if (!N8N_WEBHOOK_URL) throw new Error("Missing N8N_WEBHOOK_URL");
 
 const client = new Client({
   intents: [
@@ -35,6 +35,9 @@ const client = new Client({
 });
 
 async function callN8n(payload) {
+  console.log("➡️ Sending to n8n:", JSON.stringify(payload, null, 2));
+  console.log("➡️ n8n URL:", N8N_WEBHOOK_URL);
+
   const res = await fetch(N8N_WEBHOOK_URL, {
     method: "POST",
     headers: {
@@ -45,13 +48,15 @@ async function callN8n(payload) {
 
   const text = await res.text();
 
+  console.log("⬅️ n8n status:", res.status);
+  console.log("⬅️ n8n response:", text);
+
   try {
     return JSON.parse(text);
   } catch {
-    console.error("n8n returned non-JSON:", text);
     return {
       success: false,
-      message: "n8n returned an invalid response."
+      message: text || "n8n returned an invalid response."
     };
   }
 }
