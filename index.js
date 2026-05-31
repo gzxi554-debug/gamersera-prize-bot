@@ -106,7 +106,6 @@ function buildAdminClaimEmbed(claim) {
       { name: "Membership", value: safe(claim.membership_role), inline: true },
       { name: "Category", value: safe(claim.category), inline: true },
       { name: "Selected Prize", value: safe(claim.selected_prize), inline: true },
-      { name: "Prize Value", value: safe(claim.prize_value), inline: true },
       { name: "Region", value: safe(claim.region), inline: true },
       { name: "Delivery Method", value: safe(claim.delivery_method), inline: true },
       { name: "PayPal Form Required", value: safe(claim.paypal_form_required, "No"), inline: true },
@@ -126,7 +125,6 @@ function buildUserClaimEmbed(claim) {
       { name: "Claim Number", value: safe(claim.claim_number || claim.claim_id), inline: true },
       { name: "Status", value: safe(claim.status, "Pending Review"), inline: true },
       { name: "Prize", value: safe(claim.selected_prize), inline: true },
-      { name: "Prize Value", value: safe(claim.prize_value), inline: true }
     )
     .setFooter({ text: "You will receive updates through Discord." })
     .setTimestamp();
