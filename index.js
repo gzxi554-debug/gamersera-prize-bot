@@ -12,9 +12,10 @@ import {
   REST,
   Routes,
   EmbedBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle
+ModalBuilder,
+TextInputBuilder,
+TextInputStyle,
+StringSelectMenuBuilder
 } from "discord.js";
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -202,7 +203,60 @@ async function registerCommands() {
     new SlashCommandBuilder()
       .setName("claimpanel")
       .setDescription("Post the GamersEra prize claim button panel")
+      .toJSON(),
+
+    new SlashCommandBuilder()
+      .setName("template-create")
+      .setDescription("Create a new prize template")
+      .toJSON(),
+
+    new SlashCommandBuilder()
+      .setName("template-list")
+      .setDescription("List all prize templates")
+      .toJSON(),
+
+    new SlashCommandBuilder()
+      .setName("template-activate")
+      .setDescription("Activate a prize template")
+      .addStringOption(option =>
+        option
+          .setName("template_id")
+          .setDescription("Template ID, example: TPL-001")
+          .setRequired(true)
+      )
+      .toJSON(),
+
+    new SlashCommandBuilder()
+      .setName("active-template")
+      .setDescription("Show the currently active prize template")
+      .toJSON(),
+
+    new SlashCommandBuilder()
+      .setName("prize-add")
+      .setDescription("Add a prize to a template")
+      .toJSON(),
+
+    new SlashCommandBuilder()
+      .setName("prize-list")
+      .setDescription("List prizes for a template")
+      .addStringOption(option =>
+        option
+          .setName("template_id")
+          .setDescription("Template ID, example: TPL-001")
+          .setRequired(true)
+      )
       .toJSON()
+  ];
+
+  const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
+
+  await rest.put(
+    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
+    { body: commands }
+  );
+
+  console.log("Slash commands registered");
+}
   ];
 
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
@@ -273,13 +327,181 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
     if (interaction.isChatInputCommand()) {
-      if (interaction.commandName === "claimpanel") {
-        await interaction.reply(buildClaimPanel());
-        return;
-      }
-    }
+
+  if (interaction.commandName === "claimpanel") {
+    await interaction.reply(buildClaimPanel());
+    return;
+  }
+
+  if (interaction.commandName === "template-create") {
+    const modal = new ModalBuilder()
+      .setCustomId("template_create_modal")
+      .setTitle("Create Template");
+
+    const templateName = new TextInputBuilder()
+      .setCustomId("template_name")
+      .setLabel("Template Name")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const eventName = new TextInputBuilder()
+      .setCustomId("event_name")
+      .setLabel("Event Name")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const tournamentName = new TextInputBuilder()
+      .setCustomId("tournament_name")
+      .setLabel("Tournament Name")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(templateName),
+      new ActionRowBuilder().addComponents(eventName),
+      new ActionRowBuilder().addComponents(tournamentName)
+    );
+
+    await interaction.showModal(modal);
+    return;
+  }
+
+  if (interaction.commandName === "template-list") {
+    await interaction.deferReply({ ephemeral: true });
+
+    const result = await callN8n({
+      action: "get_templates"
+    });
+
+    return interaction.editReply({
+      content: "Templates:\n```json\n" + JSON.stringify(result, null, 2) + "\n```"
+    });
+  }
+
+  if (interaction.commandName === "active-template") {
+    await interaction.deferReply({ ephemeral: true });
+
+    const result = await callN8n({
+      action: "get_active_template"
+    });
+
+    return interaction.editReply({
+      content: "```json\n" + JSON.stringify(result, null, 2) + "\n```"
+    });
+  }
+
+  if (interaction.commandName === "template-activate") {
+    await interaction.deferReply({ ephemeral: true });
+
+    const templateId =
+      interaction.options.getString("template_id");
+
+    const result = await callN8n({
+      action: "activate_template",
+      template_id: templateId
+    });
+
+    return interaction.editReply(
+      result.success
+        ? `✅ Activated template ${templateId}`
+        : `❌ ${result.message || "Failed"}`
+    );
+  }
+
+  if (interaction.commandName === "prize-list") {
+    await interaction.deferReply({ ephemeral: true });
+
+    const templateId =
+      interaction.options.getString("template_id");
+
+    const result = await callN8n({
+      action: "get_prizes",
+      template_id: templateId
+    });
+
+    return interaction.editReply({
+      content: "```json\n" + JSON.stringify(result, null, 2) + "\n```"
+    });
+  }
+
+  if (interaction.commandName === "prize-add") {
+    const modal = new ModalBuilder()
+      .setCustomId("prize_add_modal")
+      .setTitle("Add Prize");
+
+    const templateId = new TextInputBuilder()
+      .setCustomId("template_id")
+      .setLabel("Template ID")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const prizeName = new TextInputBuilder()
+      .setCustomId("prize_name")
+      .setLabel("Prize Name")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const placementRole = new TextInputBuilder()
+      .setCustomId("placement_role")
+      .setLabel("Placement Role")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(templateId),
+      new ActionRowBuilder().addComponents(prizeName),
+      new ActionRowBuilder().addComponents(placementRole)
+    );
+
+    await interaction.showModal(modal);
+    return;
+  }
+}
 
     if (interaction.isModalSubmit()) {
+
+      if (interaction.customId === "template_create_modal") {
+  await interaction.deferReply({ ephemeral: true });
+
+  const templateName = interaction.fields.getTextInputValue("template_name");
+  const eventName = interaction.fields.getTextInputValue("event_name");
+  const tournamentName = interaction.fields.getTextInputValue("tournament_name");
+
+  const result = await callN8n({
+    action: "create_template",
+    template_name: templateName,
+    event_name: eventName,
+    tournament_name: tournamentName
+  });
+
+  return interaction.editReply(
+    result.success
+      ? `✅ Template created successfully.\nTemplate ID: ${result.template_id || "Check n8n response"}`
+      : `❌ ${result.message || "Failed to create template."}`
+  );
+}
+
+if (interaction.customId === "prize_add_modal") {
+  await interaction.deferReply({ ephemeral: true });
+
+  const templateId = interaction.fields.getTextInputValue("template_id");
+  const prizeName = interaction.fields.getTextInputValue("prize_name");
+  const placementRole = interaction.fields.getTextInputValue("placement_role");
+
+  const result = await callN8n({
+    action: "add_prize",
+    template_id: templateId,
+    prize_name: prizeName,
+    placement_role: placementRole
+  });
+
+  return interaction.editReply(
+    result.success
+      ? `✅ Prize added successfully.\nPrize ID: ${result.item_id || result.prize_id || "Check n8n response"}`
+      : `❌ ${result.message || "Failed to add prize."}`
+  );
+}
+      
       if (interaction.customId.startsWith("deliver_modal:")) {
         const claimId = interaction.customId.split(":")[1];
         const deliveryProofUrl = interaction.fields.getTextInputValue("delivery_proof_url");
