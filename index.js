@@ -145,6 +145,26 @@ function buildAdminButtons(claimId) {
   );
 }
 
+function buildDeliveredDoneButton(claimId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`delivered_done:${claimId}`)
+      .setLabel("Delivered")
+      .setStyle(ButtonStyle.Success)
+      .setDisabled(true)
+  );
+}
+
+function buildRejectedDoneButton(claimId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`rejected_done:${claimId}`)
+      .setLabel("Rejected")
+      .setStyle(ButtonStyle.Danger)
+      .setDisabled(true)
+  );
+}
+
 function buildDeliveredModal(claimId) {
   const modal = new ModalBuilder()
     .setCustomId(`deliver_modal:${claimId}`)
@@ -157,9 +177,7 @@ function buildDeliveredModal(claimId) {
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true);
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(proofInput)
-  );
+  modal.addComponents(new ActionRowBuilder().addComponents(proofInput));
 
   return modal;
 }
@@ -176,9 +194,7 @@ function buildRejectModal(claimId) {
     .setStyle(TextInputStyle.Paragraph)
     .setRequired(true);
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(reasonInput)
-  );
+  modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
 
   return modal;
 }
@@ -286,9 +302,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         try {
           await interaction.message.edit({
-            components: []
+            components: [buildDeliveredDoneButton(claimId)]
           });
-        } catch {}
+        } catch (err) {
+          console.error("Failed to update delivered button:", err);
+        }
 
         return interaction.editReply(`Claim ${claimId} marked as delivered.`);
       }
@@ -313,9 +331,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         try {
           await interaction.message.edit({
-            components: []
+            components: [buildRejectedDoneButton(claimId)]
           });
-        } catch {}
+        } catch (err) {
+          console.error("Failed to update rejected button:", err);
+        }
 
         return interaction.editReply(`Claim ${claimId} rejected.`);
       }
