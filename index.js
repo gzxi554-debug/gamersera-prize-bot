@@ -11,7 +11,10 @@ import {
   SlashCommandBuilder,
   REST,
   Routes,
-  EmbedBuilder
+  EmbedBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } from "discord.js";
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -77,10 +80,7 @@ function buildClaimPanel() {
       .setStyle(ButtonStyle.Success)
   );
 
-  return {
-    embeds: [embed],
-    components: [row]
-  };
+  return { embeds: [embed], components: [row] };
 }
 
 function buildClaimReadyEmbed() {
@@ -92,7 +92,7 @@ function buildClaimReadyEmbed() {
 }
 
 function buildAdminClaimEmbed(claim) {
-  const embed = new EmbedBuilder()
+  return new EmbedBuilder()
     .setTitle("New Prize Claim")
     .setColor(0x14c8ff)
     .addFields(
@@ -115,8 +115,6 @@ function buildAdminClaimEmbed(claim) {
     )
     .setFooter({ text: "GamersEra Admin Claim Log" })
     .setTimestamp();
-
-  return embed;
 }
 
 function buildUserClaimEmbed(claim) {
@@ -132,6 +130,57 @@ function buildUserClaimEmbed(claim) {
     )
     .setFooter({ text: "You will receive updates through Discord." })
     .setTimestamp();
+}
+
+function buildAdminButtons(claimId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`deliver_claim:${claimId}`)
+      .setLabel("Mark Delivered")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`reject_claim:${claimId}`)
+      .setLabel("Reject Claim")
+      .setStyle(ButtonStyle.Danger)
+  );
+}
+
+function buildDeliveredModal(claimId) {
+  const modal = new ModalBuilder()
+    .setCustomId(`deliver_modal:${claimId}`)
+    .setTitle("Mark Claim Delivered");
+
+  const proofInput = new TextInputBuilder()
+    .setCustomId("delivery_proof_url")
+    .setLabel("Delivery Proof URL")
+    .setPlaceholder("Paste proof link, screenshot URL, gift card proof, etc.")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(proofInput)
+  );
+
+  return modal;
+}
+
+function buildRejectModal(claimId) {
+  const modal = new ModalBuilder()
+    .setCustomId(`reject_modal:${claimId}`)
+    .setTitle("Reject Claim");
+
+  const reasonInput = new TextInputBuilder()
+    .setCustomId("reject_reason")
+    .setLabel("Rejection Reason")
+    .setPlaceholder("Explain why this claim is rejected.")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(reasonInput)
+  );
+
+  return modal;
 }
 
 async function registerCommands() {
@@ -159,30 +208,22 @@ app.get("/", (req, res) => {
 app.post("/claim-submitted", async (req, res) => {
   try {
     const claim = req.body || {};
+    const claimId = claim.claim_id || claim.claim_number;
+
+    if (!claimId) {
+      return res.status(400).json({ success: false, message: "Missing claim_id." });
+    }
 
     const adminChannel = await client.channels.fetch(ADMIN_CHANNEL_ID);
 
-    const adminButtons = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`deliver_claim:${claim.claim_id}`)
-        .setLabel("Mark Delivered")
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId(`reject_claim:${claim.claim_id}`)
-        .setLabel("Reject Claim")
-        .setStyle(ButtonStyle.Danger)
-    );
-
     await adminChannel.send({
       embeds: [buildAdminClaimEmbed(claim)],
-      components: [adminButtons]
+      components: [buildAdminButtons(claimId)]
     });
 
     try {
       const user = await client.users.fetch(String(claim.discord_user_id));
-      await user.send({
-        embeds: [buildUserClaimEmbed(claim)]
-      });
+      await user.send({ embeds: [buildUserClaimEmbed(claim)] });
     } catch (dmErr) {
       console.error("Could not DM user:", dmErr);
     }
@@ -221,6 +262,62 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (interaction.commandName === "claimpanel") {
         await interaction.reply(buildClaimPanel());
         return;
+      }
+    }
+
+    if (interaction.isModalSubmit()) {
+      if (interaction.customId.startsWith("deliver_modal:")) {
+        const claimId = interaction.customId.split(":")[1];
+        const deliveryProofUrl = interaction.fields.getTextInputValue("delivery_proof_url");
+
+        await interaction.deferReply({ ephemeral: true });
+
+        const result = await callN8n({
+          action: "mark_claim_delivered",
+          claim_id: claimId,
+          admin_id: String(interaction.user.id),
+          admin_name: interaction.user.username,
+          delivery_proof_url: deliveryProofUrl
+        });
+
+        if (!result.success) {
+          return interaction.editReply(result.message || "Failed to mark claim as delivered.");
+        }
+
+        try {
+          await interaction.message.edit({
+            components: []
+          });
+        } catch {}
+
+        return interaction.editReply(`Claim ${claimId} marked as delivered.`);
+      }
+
+      if (interaction.customId.startsWith("reject_modal:")) {
+        const claimId = interaction.customId.split(":")[1];
+        const reason = interaction.fields.getTextInputValue("reject_reason");
+
+        await interaction.deferReply({ ephemeral: true });
+
+        const result = await callN8n({
+          action: "reject_claim",
+          claim_id: claimId,
+          admin_id: String(interaction.user.id),
+          admin_name: interaction.user.username,
+          reason
+        });
+
+        if (!result.success) {
+          return interaction.editReply(result.message || "Failed to reject claim.");
+        }
+
+        try {
+          await interaction.message.edit({
+            components: []
+          });
+        } catch {}
+
+        return interaction.editReply(`Claim ${claimId} rejected.`);
       }
     }
 
@@ -263,23 +360,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.customId.startsWith("deliver_claim:")) {
       const claimId = interaction.customId.split(":")[1];
-
-      await interaction.reply({
-        content: `Delivery action received for ${claimId}. We will connect this button to n8n next.`,
-        ephemeral: true
-      });
-
+      await interaction.showModal(buildDeliveredModal(claimId));
       return;
     }
 
     if (interaction.customId.startsWith("reject_claim:")) {
       const claimId = interaction.customId.split(":")[1];
-
-      await interaction.reply({
-        content: `Reject action received for ${claimId}. We will connect this button to n8n next.`,
-        ephemeral: true
-      });
-
+      await interaction.showModal(buildRejectModal(claimId));
       return;
     }
   } catch (err) {
