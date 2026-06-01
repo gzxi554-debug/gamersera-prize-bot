@@ -12,17 +12,15 @@ import {
   REST,
   Routes,
   EmbedBuilder,
-ModalBuilder,
-TextInputBuilder,
-TextInputStyle,
-StringSelectMenuBuilder
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } from "discord.js";
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const ADMIN_CHANNEL_ID = process.env.ADMIN_CHANNEL_ID;
-
 const N8N_WEBHOOK_URL = "https://gamersera.app.n8n.cloud/webhook/gamersera-prizes";
 
 if (!DISCORD_TOKEN) throw new Error("Missing DISCORD_TOKEN");
@@ -125,7 +123,7 @@ function buildUserClaimEmbed(claim) {
     .addFields(
       { name: "Claim Number", value: safe(claim.claim_number || claim.claim_id), inline: true },
       { name: "Status", value: safe(claim.status, "Pending Review"), inline: true },
-      { name: "Prize", value: safe(claim.selected_prize), inline: true },
+      { name: "Prize", value: safe(claim.selected_prize), inline: true }
     )
     .setFooter({ text: "You will receive updates through Discord." })
     .setTimestamp();
@@ -133,41 +131,25 @@ function buildUserClaimEmbed(claim) {
 
 function buildAdminButtons(claimId) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`deliver_claim:${claimId}`)
-      .setLabel("Mark Delivered")
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId(`reject_claim:${claimId}`)
-      .setLabel("Reject Claim")
-      .setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId(`deliver_claim:${claimId}`).setLabel("Mark Delivered").setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`reject_claim:${claimId}`).setLabel("Reject Claim").setStyle(ButtonStyle.Danger)
   );
 }
 
 function buildDeliveredDoneButton(claimId) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`delivered_done:${claimId}`)
-      .setLabel("Delivered")
-      .setStyle(ButtonStyle.Success)
-      .setDisabled(true)
+    new ButtonBuilder().setCustomId(`delivered_done:${claimId}`).setLabel("Delivered").setStyle(ButtonStyle.Success).setDisabled(true)
   );
 }
 
 function buildRejectedDoneButton(claimId) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`rejected_done:${claimId}`)
-      .setLabel("Rejected")
-      .setStyle(ButtonStyle.Danger)
-      .setDisabled(true)
+    new ButtonBuilder().setCustomId(`rejected_done:${claimId}`).setLabel("Rejected").setStyle(ButtonStyle.Danger).setDisabled(true)
   );
 }
 
 function buildDeliveredModal(claimId) {
-  const modal = new ModalBuilder()
-    .setCustomId(`deliver_modal:${claimId}`)
-    .setTitle("Mark Claim Delivered");
+  const modal = new ModalBuilder().setCustomId(`deliver_modal:${claimId}`).setTitle("Mark Claim Delivered");
 
   const proofInput = new TextInputBuilder()
     .setCustomId("delivery_proof_url")
@@ -177,14 +159,11 @@ function buildDeliveredModal(claimId) {
     .setRequired(true);
 
   modal.addComponents(new ActionRowBuilder().addComponents(proofInput));
-
   return modal;
 }
 
 function buildRejectModal(claimId) {
-  const modal = new ModalBuilder()
-    .setCustomId(`reject_modal:${claimId}`)
-    .setTitle("Reject Claim");
+  const modal = new ModalBuilder().setCustomId(`reject_modal:${claimId}`).setTitle("Reject Claim");
 
   const reasonInput = new TextInputBuilder()
     .setCustomId("reject_reason")
@@ -194,78 +173,35 @@ function buildRejectModal(claimId) {
     .setRequired(true);
 
   modal.addComponents(new ActionRowBuilder().addComponents(reasonInput));
-
   return modal;
 }
 
 async function registerCommands() {
   const commands = [
-    new SlashCommandBuilder()
-      .setName("claimpanel")
-      .setDescription("Post the GamersEra prize claim button panel")
-      .toJSON(),
-
-    new SlashCommandBuilder()
-      .setName("template-create")
-      .setDescription("Create a new prize template")
-      .toJSON(),
-
-    new SlashCommandBuilder()
-      .setName("template-list")
-      .setDescription("List all prize templates")
-      .toJSON(),
-
+    new SlashCommandBuilder().setName("claimpanel").setDescription("Post the GamersEra prize claim button panel").toJSON(),
+    new SlashCommandBuilder().setName("template-create").setDescription("Create a new prize template").toJSON(),
+    new SlashCommandBuilder().setName("template-list").setDescription("List all prize templates").toJSON(),
     new SlashCommandBuilder()
       .setName("template-activate")
       .setDescription("Activate a prize template")
       .addStringOption(option =>
-        option
-          .setName("template_id")
-          .setDescription("Template ID, example: TPL-001")
-          .setRequired(true)
+        option.setName("template_id").setDescription("Template ID, example: TPL-001").setRequired(true)
       )
       .toJSON(),
-
-    new SlashCommandBuilder()
-      .setName("active-template")
-      .setDescription("Show the currently active prize template")
-      .toJSON(),
-
-    new SlashCommandBuilder()
-      .setName("prize-add")
-      .setDescription("Add a prize to a template")
-      .toJSON(),
-
+    new SlashCommandBuilder().setName("active-template").setDescription("Show the currently active prize template").toJSON(),
+    new SlashCommandBuilder().setName("prize-add").setDescription("Add a prize to a template").toJSON(),
     new SlashCommandBuilder()
       .setName("prize-list")
       .setDescription("List prizes for a template")
       .addStringOption(option =>
-        option
-          .setName("template_id")
-          .setDescription("Template ID, example: TPL-001")
-          .setRequired(true)
+        option.setName("template_id").setDescription("Template ID, example: TPL-001").setRequired(true)
       )
       .toJSON()
   ];
 
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
 
-  await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-    { body: commands }
-  );
-
-  console.log("Slash commands registered");
-}
-  ];
-
-  const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
-
-  await rest.put(
-    Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID),
-    { body: commands }
-  );
-
+  await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
   console.log("Slash commands registered");
 }
 
@@ -299,10 +235,7 @@ app.post("/claim-submitted", async (req, res) => {
     return res.json({ success: true, message: "Claim embeds sent." });
   } catch (err) {
     console.error("claim-submitted error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to send claim embeds."
-    });
+    return res.status(500).json({ success: false, message: "Failed to send claim embeds." });
   }
 });
 
@@ -327,181 +260,141 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
     if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === "claimpanel") {
+        await interaction.reply(buildClaimPanel());
+        return;
+      }
 
-  if (interaction.commandName === "claimpanel") {
-    await interaction.reply(buildClaimPanel());
-    return;
-  }
+      if (interaction.commandName === "template-create") {
+        const modal = new ModalBuilder().setCustomId("template_create_modal").setTitle("Create Template");
 
-  if (interaction.commandName === "template-create") {
-    const modal = new ModalBuilder()
-      .setCustomId("template_create_modal")
-      .setTitle("Create Template");
+        const templateName = new TextInputBuilder().setCustomId("template_name").setLabel("Template Name").setStyle(TextInputStyle.Short).setRequired(true);
+        const eventName = new TextInputBuilder().setCustomId("event_name").setLabel("Event Name").setStyle(TextInputStyle.Short).setRequired(true);
+        const tournamentName = new TextInputBuilder().setCustomId("tournament_name").setLabel("Tournament Name").setStyle(TextInputStyle.Short).setRequired(true);
 
-    const templateName = new TextInputBuilder()
-      .setCustomId("template_name")
-      .setLabel("Template Name")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(templateName),
+          new ActionRowBuilder().addComponents(eventName),
+          new ActionRowBuilder().addComponents(tournamentName)
+        );
 
-    const eventName = new TextInputBuilder()
-      .setCustomId("event_name")
-      .setLabel("Event Name")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
+        await interaction.showModal(modal);
+        return;
+      }
 
-    const tournamentName = new TextInputBuilder()
-      .setCustomId("tournament_name")
-      .setLabel("Tournament Name")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
+      if (interaction.commandName === "template-list") {
+        await interaction.deferReply({ ephemeral: true });
 
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(templateName),
-      new ActionRowBuilder().addComponents(eventName),
-      new ActionRowBuilder().addComponents(tournamentName)
-    );
+        const result = await callN8n({ action: "get_templates" });
 
-    await interaction.showModal(modal);
-    return;
-  }
+        return interaction.editReply({
+          content: "Templates:\n```json\n" + JSON.stringify(result, null, 2).slice(0, 1800) + "\n```"
+        });
+      }
 
-  if (interaction.commandName === "template-list") {
-    await interaction.deferReply({ ephemeral: true });
+      if (interaction.commandName === "active-template") {
+        await interaction.deferReply({ ephemeral: true });
 
-    const result = await callN8n({
-      action: "get_templates"
-    });
+        const result = await callN8n({ action: "get_active_template" });
 
-    return interaction.editReply({
-      content: "Templates:\n```json\n" + JSON.stringify(result, null, 2) + "\n```"
-    });
-  }
+        return interaction.editReply({
+          content: "Active Template:\n```json\n" + JSON.stringify(result, null, 2).slice(0, 1800) + "\n```"
+        });
+      }
 
-  if (interaction.commandName === "active-template") {
-    await interaction.deferReply({ ephemeral: true });
+      if (interaction.commandName === "template-activate") {
+        await interaction.deferReply({ ephemeral: true });
 
-    const result = await callN8n({
-      action: "get_active_template"
-    });
+        const templateId = interaction.options.getString("template_id");
 
-    return interaction.editReply({
-      content: "```json\n" + JSON.stringify(result, null, 2) + "\n```"
-    });
-  }
+        const result = await callN8n({
+          action: "activate_template",
+          template_id: templateId
+        });
 
-  if (interaction.commandName === "template-activate") {
-    await interaction.deferReply({ ephemeral: true });
+        return interaction.editReply(
+          result.success
+            ? `✅ Activated template ${templateId}`
+            : `❌ ${result.message || "Failed to activate template."}`
+        );
+      }
 
-    const templateId =
-      interaction.options.getString("template_id");
+      if (interaction.commandName === "prize-list") {
+        await interaction.deferReply({ ephemeral: true });
 
-    const result = await callN8n({
-      action: "activate_template",
-      template_id: templateId
-    });
+        const templateId = interaction.options.getString("template_id");
 
-    return interaction.editReply(
-      result.success
-        ? `✅ Activated template ${templateId}`
-        : `❌ ${result.message || "Failed"}`
-    );
-  }
+        const result = await callN8n({
+          action: "get_prizes",
+          template_id: templateId
+        });
 
-  if (interaction.commandName === "prize-list") {
-    await interaction.deferReply({ ephemeral: true });
+        return interaction.editReply({
+          content: "Prizes:\n```json\n" + JSON.stringify(result, null, 2).slice(0, 1800) + "\n```"
+        });
+      }
 
-    const templateId =
-      interaction.options.getString("template_id");
+      if (interaction.commandName === "prize-add") {
+        const modal = new ModalBuilder().setCustomId("prize_add_modal").setTitle("Add Prize");
 
-    const result = await callN8n({
-      action: "get_prizes",
-      template_id: templateId
-    });
+        const templateId = new TextInputBuilder().setCustomId("template_id").setLabel("Template ID").setStyle(TextInputStyle.Short).setRequired(true);
+        const prizeName = new TextInputBuilder().setCustomId("prize_name").setLabel("Prize Name").setStyle(TextInputStyle.Short).setRequired(true);
+        const category = new TextInputBuilder().setCustomId("category").setLabel("Category").setPlaceholder("Gift Card or PayPal").setStyle(TextInputStyle.Short).setRequired(true);
+        const placementRole = new TextInputBuilder().setCustomId("placement_role").setLabel("Placement Role").setPlaceholder("1st Place / 2nd Place / 3rd Place").setStyle(TextInputStyle.Short).setRequired(true);
+        const paypalRequired = new TextInputBuilder().setCustomId("paypal_form_required").setLabel("PayPal Form Required?").setPlaceholder("Yes or No").setStyle(TextInputStyle.Short).setRequired(true);
 
-    return interaction.editReply({
-      content: "```json\n" + JSON.stringify(result, null, 2) + "\n```"
-    });
-  }
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(templateId),
+          new ActionRowBuilder().addComponents(prizeName),
+          new ActionRowBuilder().addComponents(category),
+          new ActionRowBuilder().addComponents(placementRole),
+          new ActionRowBuilder().addComponents(paypalRequired)
+        );
 
-  if (interaction.commandName === "prize-add") {
-    const modal = new ModalBuilder()
-      .setCustomId("prize_add_modal")
-      .setTitle("Add Prize");
-
-    const templateId = new TextInputBuilder()
-      .setCustomId("template_id")
-      .setLabel("Template ID")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const prizeName = new TextInputBuilder()
-      .setCustomId("prize_name")
-      .setLabel("Prize Name")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const placementRole = new TextInputBuilder()
-      .setCustomId("placement_role")
-      .setLabel("Placement Role")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(templateId),
-      new ActionRowBuilder().addComponents(prizeName),
-      new ActionRowBuilder().addComponents(placementRole)
-    );
-
-    await interaction.showModal(modal);
-    return;
-  }
-}
+        await interaction.showModal(modal);
+        return;
+      }
+    }
 
     if (interaction.isModalSubmit()) {
-
       if (interaction.customId === "template_create_modal") {
-  await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ ephemeral: true });
 
-  const templateName = interaction.fields.getTextInputValue("template_name");
-  const eventName = interaction.fields.getTextInputValue("event_name");
-  const tournamentName = interaction.fields.getTextInputValue("tournament_name");
+        const result = await callN8n({
+          action: "create_template",
+          template_name: interaction.fields.getTextInputValue("template_name"),
+          event_name: interaction.fields.getTextInputValue("event_name"),
+          tournament_name: interaction.fields.getTextInputValue("tournament_name")
+        });
 
-  const result = await callN8n({
-    action: "create_template",
-    template_name: templateName,
-    event_name: eventName,
-    tournament_name: tournamentName
-  });
+        return interaction.editReply(
+          result.success
+            ? `✅ Template created successfully.\nTemplate ID: ${result.template_id || result.active_template_id || "Check n8n response"}`
+            : `❌ ${result.message || "Failed to create template."}`
+        );
+      }
 
-  return interaction.editReply(
-    result.success
-      ? `✅ Template created successfully.\nTemplate ID: ${result.template_id || "Check n8n response"}`
-      : `❌ ${result.message || "Failed to create template."}`
-  );
-}
+      if (interaction.customId === "prize_add_modal") {
+        await interaction.deferReply({ ephemeral: true });
 
-if (interaction.customId === "prize_add_modal") {
-  await interaction.deferReply({ ephemeral: true });
+        const result = await callN8n({
+          action: "add_prize",
+          template_id: interaction.fields.getTextInputValue("template_id"),
+          prize_name: interaction.fields.getTextInputValue("prize_name"),
+          category: interaction.fields.getTextInputValue("category"),
+          placement_role: interaction.fields.getTextInputValue("placement_role"),
+          membership_role: "Normal",
+          paypal_form_required: interaction.fields.getTextInputValue("paypal_form_required"),
+          stock_status: "Available"
+        });
 
-  const templateId = interaction.fields.getTextInputValue("template_id");
-  const prizeName = interaction.fields.getTextInputValue("prize_name");
-  const placementRole = interaction.fields.getTextInputValue("placement_role");
+        return interaction.editReply(
+          result.success
+            ? `✅ Prize added successfully.\nPrize ID: ${result.item_id || result.prize_id || "Check n8n response"}`
+            : `❌ ${result.message || "Failed to add prize."}`
+        );
+      }
 
-  const result = await callN8n({
-    action: "add_prize",
-    template_id: templateId,
-    prize_name: prizeName,
-    placement_role: placementRole
-  });
-
-  return interaction.editReply(
-    result.success
-      ? `✅ Prize added successfully.\nPrize ID: ${result.item_id || result.prize_id || "Check n8n response"}`
-      : `❌ ${result.message || "Failed to add prize."}`
-  );
-}
-      
       if (interaction.customId.startsWith("deliver_modal:")) {
         const claimId = interaction.customId.split(":")[1];
         const deliveryProofUrl = interaction.fields.getTextInputValue("delivery_proof_url");
@@ -521,9 +414,7 @@ if (interaction.customId === "prize_add_modal") {
         }
 
         try {
-          await interaction.message.edit({
-            components: [buildDeliveredDoneButton(claimId)]
-          });
+          await interaction.message.edit({ components: [buildDeliveredDoneButton(claimId)] });
         } catch (err) {
           console.error("Failed to update delivered button:", err);
         }
@@ -550,9 +441,7 @@ if (interaction.customId === "prize_add_modal") {
         }
 
         try {
-          await interaction.message.edit({
-            components: [buildRejectedDoneButton(claimId)]
-          });
+          await interaction.message.edit({ components: [buildRejectedDoneButton(claimId)] });
         } catch (err) {
           console.error("Failed to update rejected button:", err);
         }
@@ -568,9 +457,7 @@ if (interaction.customId === "prize_add_modal") {
 
       const member = await interaction.guild.members.fetch(interaction.user.id);
 
-      const roleIdsText = member.roles.cache
-        .map((role) => String(role.id))
-        .join(",");
+      const roleIdsText = member.roles.cache.map((role) => String(role.id)).join(",");
 
       const result = await callN8n({
         action: "create_claim_token",
@@ -580,16 +467,11 @@ if (interaction.customId === "prize_add_modal") {
       });
 
       if (!result.success || !result.claim_url) {
-        return interaction.editReply(
-          result.message || "Failed to create your prize claim link."
-        );
+        return interaction.editReply(result.message || "Failed to create your prize claim link.");
       }
 
       const claimButton = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel("Open Prize Claim Portal")
-          .setStyle(ButtonStyle.Link)
-          .setURL(result.claim_url)
+        new ButtonBuilder().setLabel("Open Prize Claim Portal").setStyle(ButtonStyle.Link).setURL(result.claim_url)
       );
 
       return interaction.editReply({
